@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GamePlan – Gestion des entraînements (V6.1 PROPRE – tuiles & joueurs vides + packs enrichis + Cloud)</title>
+<style>
+:root{--bg:#0b0b0c;--text:#fff;--gold:#d4af37;--card:#1a1a1a;--muted:#2a2a2a;--accent:#2b2b2b}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+/* Header sticky */
+header{position:sticky;top:0;z-index:30;background:#111;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.header-left{display:flex;align-items:center;gap:10px;min-width:0}
+header img{height:40px}
+header h1{margin:0;font-size:1.02rem;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge-role{font-size:.82rem;padding:4px 8px;border-radius:999px;border:1px solid rgba(212,175,55,.35);background:#161616;white-space:nowrap}
+.badge-user{font-size:.85rem;padding:4px 8px;background:var(--muted);border-radius:6px;opacity:.9;max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button{background:var(--gold);color:var(--bg);border:none;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600}
+button.ghost{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+button.small{padding:6px 10px;font-size:.92rem}
+main{padding:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+/* Tiles */
+.tile{position:relative;background:var(--card);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;outline:1px solid rgba(212,175,55,.15)}
+.tile img{width:100%;height:150px;object-fit:cover}
+.tile .lock{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);border:1px solid rgba(212,175,55,.35);padding:2px 8px;border-radius:999px;font-size:.8rem}
+.tile-content{padding:10px 12px;display:flex;flex-direction:column;gap:4px;flex:1;min-height:122px}
+.tile h2{margin:0;color:var(--gold);font-size:1.05rem}
+.meta{font-size:.93rem;opacity:.95}
+.progress{background:#333;height:10px;border-radius:6px;overflow:hidden;margin-top:6px}
+.progress>div{height:100%;background:var(--gold);width:0%;transition:width .35s}
+.tile .actions{padding:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tile .actions .edit-hint{font-size:.8rem;opacity:.75}
+/* Modals */
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);justify-content:center;align-items:center;z-index:50;padding:12px}
+.modal-content{background:#141414;border:1px solid rgba(212,175,55,.2);border-radius:12px;max-width:1000px;width:min(96vw,1000px);max-height:92vh;overflow:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;border-bottom:1px solid rgba(212,175,55,.2)}
+.modal-header h2{margin:0;color:var(--gold);font-size:1.08rem}
+.modal-body{padding:12px}
+/* Tabs */
+.tabs{display:flex;gap:6px;position:sticky;top:0;background:#141414;padding-top:4px;z-index:1}
+.tabs button{flex:1;background:#2b2b2b;border:1px solid #3b3b3b;color:#fff}
+.tabs button.active{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+.tab-content{display:none;margin-top:12px}
+.tab-content.active{display:block}
+/* Forms */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+label{font-size:.9rem;opacity:.9}
+input[type="text"],input[type="password"],input[type="date"],textarea,select{background:#121212;border:1px solid #333;color:#fff;border-radius:8px;padding:10px}
+textarea{min-height:110px;resize:vertical}
+.kv{display:grid;grid-template-columns:180px 1fr;gap:8px;align-items:center}
+.helper{font-size:.86rem;opacity:.78}
+.code{background:#0f0f0f;border:1px dashed #3a3a3a;border-radius:10px;padding:10px;font-family:ui-monospace,Consolas,monospace}
+/* Coach panel */
+.coach-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.section{background:#111;border:1px solid rgba(212,175,55,.15);border-radius:12px}
+.section .head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(212,175,55,.12)}
+.section .head h3{margin:0;color:var(--gold);font-size:1rem}
+.section .body{padding:12px;display:grid;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#222;border:1px solid #333;border-radius:999px;padding:7px 10px;font-size:.9rem;display:flex;gap:6px;align-items:center}
+.chip button{background:#333;color:#fff;border:none;border-radius:999px;padding:2px 6px;cursor:pointer}
+/* Pack list */
+.pack-toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pack-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:260px;overflow:auto;border:1px solid #2d2d2d;border-radius:10px;padding:8px;background:#0f0f0f}
+.pack-item{display:flex;gap:8px;align-items:flex-start;background:#151515;border:1px solid #2a2a2a;padding:8px;border-radius:8px}
+.pack-item label{font-size:.92rem;line-height:1.25}
+.pack-actions{display:flex;flex-wrap:wrap;gap:8px}
+/* Toast */
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#111;border:1px solid rgba(212,175,55,.35);color:#fff;padding:10px 14px;border-radius:10px;z-index:80;box-shadow:0 8px 20px rgba(0,0,0,.5);display:none;max-width:90vw;text-align:center}
+.toast.ok{border-color:#2c8f2c}
+.toast.err{border-color:#c23a3a}
+/* Embeds */
+iframe.embed{width:100%;min-height:420px;border:1px solid rgba(212,175,55,.25);border-radius:10px;background:#0e0e0e}
+/* Mobile */
+@media(max-width:720px){ .pack-list{grid-template-columns:1fr} }
+@media(max-width:560px){
+  header h1{font-size:.95rem}
+  .badge-user{display:none}
+  .tile h2{font-size:1rem}
+  .tile .actions .edit-hint{display:none}
+  .kv{grid-template-columns:1fr}
+  .modal-content{width:96vw}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <img src="https://i.postimg.cc/GhDzF3Fc/file-0000000006f461f784b4530673fff0f6.png" alt="Logo">
+    <h1>Gestion des entraînements • Séances</h1>
+    <span id="roleBadge" class="badge-role">Mode visiteur</span>
+  </div>
+  <div class="header-right" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span id="who" class="badge-user" style="display:none;"></span>
+    <button class="small" onclick="openModal('modalJoueur')">Joueur</button>
+    <button class="small" onclick="openModal('modalCoach')">Coach</button>
+    <button id="btnCopy" class="small" style="display:none;" onclick="copyMagicLink()">Copier lien</button>
+    <button id="btnLogout" class="small" style="display:none;" onclick="logout()">Se déconnecter</button>
+  </div>
+</header>
+
+<main id="tiles"></main>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- MODALES -->
+<div class="modal" id="modalJoueur">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Connexion Joueur</h2><button class="ghost small" onclick="closeModal('modalJoueur')">Fermer</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Identifiant</label><input id="playerName" type="text" placeholder="ex: Prénom"/></div>
+      <div class="field"><label>Mot de passe</label><input id="playerPwd" type="password" placeholder="••••••"/></div>
+      <button onclick="loginPlayer()">Se connecter</button>
+      <p class="helper">Les joueurs sont gérés par le coach (section 0). Si ton nom n’existe pas, contacte le coach.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalCoach">
+  <div class="modal-content">
+    <div class="modal-header"><h2>Connexion Coach</h2><button class="ghost small" onclick="closeModal('modalCoach')">Fermer</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Code PIN</label><input id="coachPin" type="password" placeholder="0802"/></div>
+      <button onclick="loginCoach()">Se connecter</button>
+      <p class="helper">PIN correct par défaut : <b>0802</b> (à changer dans le code avant diffusion publique).</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalDetail">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2 id="detailTitle">Détail séance</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="ghost small" onclick="goBackToGrid()">← Retour aux séances</button>
+        <button class="ghost small" onclick="closeModal('modalDetail')">Fermer</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="tabs">
+        <button class="tabBtn active" data-tab="fiche">Fiche</button>
+        <button class="tabBtn" data-tab="participants">Participants</button>
+        <button class="tabBtn" data-tab="exos">Exercices</button>
+      </div>
+      <div id="fiche" class="tab-content active">
+        <div style="margin-bottom:10px">
+          <img id="detailImage" src="" alt="" style="width:100%;max-height:240px;object-fit:cover;border-radius:10px;border:1px solid rgba(212,175,55,.2)"/>
+        </div>
+        <div id="detailMeta" class="helper"></div>
+        <h3 style="color:var(--gold);margin:10px 0 6px">Fiche HTML</h3>
+        <div id="detailHtml" class="code">Aucune fiche HTML importée.</div>
+        <div id="detailPdfWrap" style="margin-top:16px;display:none">
+          <h3 style="color:var(--gold);margin:10px 0 6px">PDF</h3>
+          <iframe id="detailPdf" class="embed"></iframe>
+        </div>
+        <div id="detailDriveWrap" style="margin-top:16px;display:none">
+          <h3 style="color:var(--gold);margin:10px 0 6px">Document Drive</h3>
+          <iframe id="detailDrive" class="embed" allow="clipboard-write *; clipboard-read *"></iframe>
+        </div>
+        <div style="margin-top:16px">
+          <button class="ghost small" onclick="goBackToGrid()">← Retour au menu général</button>
+        </div>
+      </div>
+      <div id="participants" class="tab-content">
+        <div id="participantsList" class="chips"></div>
+        <p class="helper" id="participantsHelp"></p>
+      </div>
+      <div id="exos" class="tab-content">
+        <div class="helper" id="exosHelp"></div>
+        <div id="exosList" class="chips"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modalPanelCoach">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Panneau Coach</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="small" onclick="closeModal('modalPanelCoach')">Fermer panneau</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="coach-grid">
+
+        <!-- 0 Equipe / Joueurs -->
+        <div class="section">
+          <div class="head"><h3>0. Gestion des joueurs (équipe)</h3><button class="small" onclick="guard(savePlayers)">Enregistrer</button></div>
+          <div class="body">
+            <div class="field"><label>Joueurs actuels</label><div id="playersChips" class="chips"></div></div>
+            <div class="kv">
+              <span>Ajouter joueur</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="newPlayer" type="text" placeholder="ex: Prénom Nom"/>
+                <button class="small" onclick="guard(addPlayer)">Ajouter</button>
+              </div>
+            </div>
+            <div class="helper">Aucun joueur n’est pré-rempli. Ajoute ton effectif ici. Les joueurs pourront ensuite se connecter avec leur identifiant.</div>
+          </div>
+        </div>
+
+        <!-- 1 Packs -->
+        <div class="section">
+          <div class="head"><h3>1. Packs d’exercices (enrichis)</h3><button class="small" onclick="guard(savePacks)">Enregistrer</button></div>
+          <div class="body">
+            <div class="kv">
+              <span>Pack courant</span>
+              <div class="pack-toolbar">
+                <select id="packSelect" onchange="renderPackEditor()" style="min-width:220px"></select>
+                <input id="packFilter" type="text" placeholder="Filtrer les exercices..." oninput="renderPackEditor()" />
+                <button class="small ghost" onclick="guard(()=>toggleAllPack(true))">Tout cocher</button>
+                <button class="small ghost" onclick="guard(()=>toggleAllPack(false))">Tout décocher</button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Éléments du pack (cocher pour composer)</label>
+              <div id="packList" class="pack-list"></div>
+            </div>
+
+            <div class="pack-actions">
+              <button class="small" onclick="guard(addSelectionToSession)">Ajouter la sélection à la séance</button>
+              <button class="small" onclick="guard(replaceSessionWithSelection)">Remplacer la séance par la sélection</button>
+            </div>
+
+            <hr>
+
+            <div class="kv">
+              <span>Ajouter exercice au pack</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="newPackItem" type="text" placeholder="ex: Closeout 1v1 (3x30s)"/>
+                <button class="small" onclick="guard(addItemToPack)">Ajouter</button>
+              </div>
+            </div>
+
+            <div class="kv">
+              <span>Nouveau pack</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="newPackName" type="text" placeholder="ex: Pré-saison U18"/>
+                <button class="small" onclick="guard(addPack)">Créer</button>
+              </div>
+            </div>
+
+            <div class="pack-actions">
+              <button class="small ghost" onclick="guard(createPackFromSession)">Créer un pack depuis la séance ouverte</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2 Perso -->
+        <div class="section">
+          <div class="head"><h3>2. Exercices personnalisés</h3><button class="small" onclick="guard(saveCustomExos)">Enregistrer</button></div>
+          <div class="body">
+            <div class="field"><label>Mes exercices</label><div id="customChips" class="chips"></div></div>
+            <div class="kv">
+              <span>Ajouter perso</span>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input id="newCustom" type="text" placeholder="ex: Tir en course main faible"/>
+                <button class="small" onclick="guard(addCustom)">Ajouter</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 Fiche (HTML / PDF / Drive) -->
+        <div class="section">
+          <div class="head"><h3>3. Import / Fiche séance (HTML, PDF, Drive)</h3></div>
+          <div class="body">
+            <div class="field"><label>Zone HTML (coller/éditer)</label><textarea id="htmlImport" placeholder="<h2>Plan de séance...</h2>"></textarea></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="small" onclick="guard(attachHtmlToSelected)">Associer HTML à la séance</button>
+              <button class="small ghost" onclick="guard(clearHtmlSelected)">Effacer HTML</button>
+              <input id="fileHtml" type="file" accept=".html,.htm,text/html" style="display:none" />
+              <button class="small" onclick="guard(()=>$('fileHtml').click())">Importer fichier HTML</button>
+            </div>
+            <hr>
+            <div class="field"><label>Importer un PDF</label><input id="filePdf" type="file" accept="application/pdf" /></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="small" onclick="guard(importPdfFile)">Associer PDF</button>
+              <button class="small ghost" onclick="guard(clearPdfSelected)">Effacer PDF</button>
+            </div>
+            <hr>
+            <div class="field">
+              <label>Lien Drive (Docs/Sheets/Slides/PDF)</label>
+              <input id="driveLink" type="text" placeholder="Colle ici le lien de partage (lecture)"/>
+              <div class="helper">Ex : docs.google.com/document/d/ID..., drive.google.com/file/d/ID/...</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="small" onclick="guard(attachDriveToSelected)">Associer document Drive</button>
+              <button class="small ghost" onclick="guard(clearDriveSelected)">Effacer document Drive</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 Liste exos du jour -->
+        <div class="section" id="section4">
+          <div class="head"><h3>4. Liste des exercices (séance ouverte)</h3></div>
+          <div class="body" id="dayExosBody">
+            <div class="helper">Coach : clique une tuile → cette section s’ouvre (édition). “Effacer” garde l’image.</div>
+          </div>
+        </div>
+
+        <!-- 5 Export/Import JSON local -->
+        <div class="section">
+          <div class="head"><h3>5. Export / Import JSON (Local)</h3></div>
+          <div class="body">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="small" onclick="exportJSON()">Exporter</button>
+              <button class="small" onclick="importJSON()">Importer</button>
+            </div>
+            <textarea id="jsonIO" class="code" placeholder='Zone d’échange JSON'></textarea>
+          </div>
+        </div>
+
+        <!-- 6 Cloud -->
+        <div class="section">
+          <div class="head"><h3>6. Gestion Cloud (URL /exec)</h3><button class="small" onclick="saveCloudUrl()">Enregistrer</button></div>
+          <div class="body">
+            <div class="kv"><span>URL Cloud</span><input id="cloudUrl" type="text" placeholder="https://script.google.com/macros/s/XXX/exec"/></div>
+            <div class="helper">Le **Lien magique** ajoute <code>?cloud=...</code> à l’URL pour pré-remplir. Boutons ci-dessous opèrent sur la **séance sélectionnée**.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="small" onclick="guard(cloudSaveSelected)">Enregistrer sur le Cloud (séance)</button>
+              <button class="small ghost" onclick="guard(cloudLoadSelected)">Charger depuis le Cloud (séance)</button>
+              <button class="small" onclick="copyMagicLink()">Copier lien magique</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7 Date -->
+        <div class="section">
+          <div class="head"><h3>7. Modification de la date</h3></div>
+          <div class="body">
+            <div class="kv"><span>Séance</span><select id="moveSelect"></select></div>
+            <div class="kv"><span>Nouvelle date</span><input id="moveDate" type="date"/></div>
+            <button class="small" onclick="guard(moveSessionDate)">Déplacer la séance</button>
+            <div class="helper">Déplace exercices, fiches (HTML/PDF/Drive), présences et progrès. Image conservée.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Utils & Toast ===== */
+const LS_KEY='gp_sessions_state_v6_1_propre';
+const $=(id)=>document.getElementById(id);
+const toISO=(fr)=>{const [d,m,y]=fr.split('/');return `${y}-${m}-${d}`;}
+const toFR=(iso)=>{const [y,m,d]=iso.split('-');return `${d}/${m}/${y}`;}
+const dayFromFR=(fr)=>{const [d,m,y]=fr.split('/');const date=new Date(`${y}-${m}-${d}T12:00:00`);
+  return new Intl.DateTimeFormat('fr-FR',{weekday:'long'}).format(date).replace(/^./,c=>c.toUpperCase());}
+const clamp=(n,min,max)=>Math.max(min,Math.min(max,n|0));
+function toast(msg,type='ok'){ const t=$('toast'); t.textContent=msg; t.className='toast '+(type==='err'?'err':'ok'); t.style.display='block'; clearTimeout(t._timer); t._timer=setTimeout(()=>t.style.display='none',2600); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+/* ===== State (PROPRE) ===== */
+let state={
+  user:null,
+  cloudUrl:'',
+  /* Packs enrichis – rien n’est injecté automatiquement */
+  packs:{
+    'Cardio':['Échauffement course progressive (8\')','Mobilité + gammes (6\')','Footing 20min','Fractionné 10x30/30','Navettes 5-10-5 (agilité)','Yo-Yo test léger (8\')','HIIT baseline 8x(20s/20s)','Montées de genoux 4x30m','Corde à sauter 3x2min','Sprints suicides 4 séries','Retour au calme + stretch (6\')'],
+    'Renfo':['Pompes 3x12','Squats 3x15','Abdos 3x20','Planche 3x45s','Fentes marchées 2x20m','Chaise 3x45s','Gainage latéral 3x30s/side','Dos “superman” 3x15','Tirage élastique 3x12','Hip thrust 3x15','Étirements chaîne postérieure (6\')'],
+    'Réactivité':['Réactivité cônes (visuel) 3x45s','Closeout drill 6x20s','Shuffle défensif 4x30s','1v1 réactions sifflet 6 reps','Mirroir appui (pairs) 5x20s','Ball drops (coach) 3x12','Sprint-backpedal 6 x demi-terrain','Rebonds réactionnels 3x12','Tag & recover (rotation) 5x40s','Transition D->O 5x (2 aller-retour)'],
+    'Tir':['Form shooting 30 reps','Spot shooting 5x5 positions','Tir en course main forte 20','Tir en course main faible 20','Catch & Shoot 50','Tir après dribble 30','Tir en sortie d’écran 20','LF séries sous pression 3x10','Compétition de tir (7 spots)','Série à 3pts 5x10'],
+    'Collectif':['Échauffement passes à 3 (5\')','Jeu à thème (drive & kick)','Transition 5c0 + 5c5','Système A (exécution 10x)','Système B (lecture) 10x','4c4 shell drill (rotations)','5c5 situations spéciales (ATO)','Jeu dirigé 10\'','Jeu libre 10\'','Clutch time (2\')','Retour au calme + debrief (5\')'],
+    'Mixte':['Échauffement dynamique (6\')','Layups en chaîne','3-pts arc','Closeouts','1c1 à thèmes','2c2 écran porteur','3c3 lecture aide','Jeu à thème','5c5 transitions','Finisher concours de tir']
+  },
+  customExos:[],
+  /* AUCUN joueur par défaut */
+  players:[],
+  /* Séances PROPRE : images + dates seulement, pas d’exos/présences pré-remplis */
+  sessions:{
+    '18/08/2025':{jour:'Lundi',date:'18/08/2025',type:'',horaire:'',lieu:'',img:'https://i.postimg.cc/FFM6xHsT/vecteezy-basketball-background-illustration-22338270.jpg',html:null,pdfBase64:null,driveEmbed:null,exos:[],participants:[]},
+    '19/08/2025':{jour:'Mardi',date:'19/08/2025',type:'',horaire:'',lieu:'',img:'https://i.postimg.cc/bw8MdS7X/pexels-mike-468229-1192043.jpg',html:null,pdfBase64:null,driveEmbed:null,exos:[],participants:[]},
+    '20/08/2025':{jour:'Mercredi',date:'20/08/2025',type:'',horaire:'',lieu:'',img:'https://i.postimg.cc/KY8HDScJ/pexels-pixabay-69773.jpg',html:null,pdfBase64:null,driveEmbed:null,exos:[],participants:[]},
+    '21/08/2025':{jour:'Jeudi',date:'21/08/2025',type:'',horaire:'',lieu:'',img:'https://i.postimg.cc/Jz16RVXM/pexels-king-siberia-1123639-2277981.jpg',html:null,pdfBase64:null,driveEmbed:null,exos:[],participants:[]},
+    '22/08/2025':{jour:'Vendredi',date:'22/08/2025',type:'',horaire:'',lieu:'',img:'https://i.postimg.cc/VvQgT31y/pexels-spencerlind1-1331750.jpg',html:null,pdfBase64:null,driveEmbed:null,exos:[],participants:[]}
+  },
+  /* Progressions vides (seront créées au besoin) */
+  progress:{}
+};
+
+let selectedDate=null;
+let editorExos=[];
+let packSelection = new Set();
+
+/* ===== Storage & Params ===== */
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function load(){
+  const s=localStorage.getItem(LS_KEY); if(s){ try{ state=JSON.parse(s);}catch{} }
+  const params=new URLSearchParams(location.search);
+  if(params.has('cloud')) state.cloudUrl=decodeURIComponent(params.get('cloud'));
+  if(params.has('date')){ const d=decodeURIComponent(params.get('date')); if(state.sessions[d]){ selectedDate=d; setTimeout(()=>openDetail(d), 120); } }
+}
+
+/* ===== Auth / UI ===== */
+function isCoach(){ return state.user?.role==='coach'; }
+function guard(fn){ return function(...args){ if(!isCoach()){ toast('Action réservée au coach','err'); return; } return fn(...args);}(); }
+function syncAuthUI(){
+  const badge=$('roleBadge');
+  if(!state.user){ badge.textContent='Mode visiteur'; badge.style.borderColor='rgba(212,175,55,.25)'; }
+  else if(isCoach()){ badge.textContent='Mode coach'; badge.style.borderColor='#d4af37'; }
+  else { badge.textContent='Mode joueur'; badge.style.borderColor='rgba(212,175,55,.35)'; }
+  if(state.user){
+    $('who').textContent=`Connecté: ${isCoach()?'Coach':state.user.name}`;
+    $('who').style.display='inline-block';
+    $('btnLogout').style.display='inline-block';
+    $('btnCopy').style.display=isCoach()?'inline-block':'none';
+  }else{
+    $('who').style.display='none';
+    $('btnLogout').style.display='none';
+    $('btnCopy').style.display='none';
+  }
+}
+
+/* ===== Tiles & Progress ===== */
+function ensureProgressArraySize(frDate){
+  const sess=state.sessions[frDate]; if(!sess) return;
+  const n=(sess.exos||[]).length;
+  state.progress[frDate]=state.progress[frDate]||{};
+  Object.keys(state.progress[frDate]).forEach(p=>{
+    const arr=state.progress[frDate][p].on||[];
+    if(arr.length>n) state.progress[frDate][p].on=arr.slice(0,n);
+    if(arr.length<n) state.progress[frDate][p].on=arr.concat(Array(n-arr.length).fill(false));
+  });
+}
+function playerPct(frDate,player){
+  const sess=state.sessions[frDate]; if(!sess) return 0;
+  const ex=sess.exos||[]; if(!ex.length) return 0;
+  const on=state.progress?.[frDate]?.[player]?.on||Array(ex.length).fill(false);
+  return Math.round(100*on.slice(0,ex.length).filter(Boolean).length/ex.length);
+}
+function renderTiles(){
+  const c=$('tiles'); c.innerHTML='';
+  const keys=Object.keys(state.sessions).sort((a,b)=>{
+    const [da,ma,ya]=a.split('/').map(Number); const [db,mb,yb]=b.split('/').map(Number);
+    return new Date(ya,ma-1,da)-new Date(yb,mb-1,db);
+  });
+  keys.forEach(frDate=>{
+    ensureProgressArraySize(frDate);
+    const s=state.sessions[frDate];
+    const tile=document.createElement('div'); tile.className='tile';
+    tile.id='tile-'+frDate.replaceAll('/','-');
+    const user=state.user;
+    const pct=(user&&user.role==='player')?playerPct(frDate,user.name):0;
+    tile.innerHTML=`
+      ${!isCoach()?'<div class="lock">🔒 lecture seule</div>':''}
+      <img src="${s.img}" alt="${s.jour}">
+      <div class="tile-content">
+        <h2>${s.jour} – ${s.date}</h2>
+        <div class="meta">Type : ${s.type||'—'}</div>
+        <div class="meta">Horaire : ${s.horaire||'—'}</div>
+        <div class="meta">Lieu : ${s.lieu||'—'}</div>
+        <div class="progress"><div style="width:${Math.max(0,Math.min(100,pct))}%"></div></div>
+        <div class="meta">${user&&user.role==='player'?`Progression ${user.name} : ${pct}%`:`Progression joueur : —`}</div>
+      </div>
+      <div class="actions">
+        <button class="small" onclick="openDetail('${frDate}')">Voir le détail</button>
+        ${isCoach()?'<span class="edit-hint">• Coach: cliquer la tuile pour éditer</span>':''}
+      </div>
+    `;
+    tile.style.cursor=isCoach()?'pointer':'default';
+    tile.addEventListener('click',(e)=>{
+      if(e.target.tagName.toLowerCase()==='button') return;
+      if(isCoach()) openCoachFromTile(frDate); else openDetail(frDate);
+    });
+    c.appendChild(tile);
+  });
+  renderMoveSelect();
+}
+
+/* ===== Detail modal ===== */
+function openDetail(frDate){ openModal('modalDetail'); renderDetail(frDate); }
+function renderDetail(frDate){
+  selectedDate=frDate;
+  const s=state.sessions[frDate];
+  $('detailTitle').textContent=`${s.jour} – ${s.date}`;
+  $('detailImage').src=s.img||'';
+  $('detailMeta').innerHTML=`<div class="meta">Type : ${s.type||'—'} • ${s.horaire||'—'} • ${s.lieu||'—'}</div>`;
+  $('detailHtml').innerHTML = s.html || 'Aucune fiche HTML importée.';
+  const pdfWrap=$('detailPdfWrap'); const pdfFrame=$('detailPdf');
+  if(s.pdfBase64){ pdfWrap.style.display='block'; pdfFrame.src=`data:application/pdf;base64,${s.pdfBase64}`; } else { pdfWrap.style.display='none'; pdfFrame.src=''; }
+  const driveWrap=$('detailDriveWrap'); const driveFrame=$('detailDrive');
+  if(s.driveEmbed){ driveWrap.style.display='block'; driveFrame.src=s.driveEmbed; } else { driveWrap.style.display='none'; driveFrame.src=''; }
+
+  // Participants
+  const pWrap=$('participantsList'); pWrap.innerHTML='';
+  const user=state.user;
+  if(!state.players.length){
+    $('participantsHelp').textContent="Aucun joueur défini. Coach : ajoute l’effectif dans la section 0.";
+  }else{
+    const visible=(user?.role==='player')?[user.name]:state.players;
+    visible.forEach(name=>{
+      const present=(s.participants||[]).includes(name);
+      const el=document.createElement('div'); el.className='chip';
+      el.innerHTML=`${escapeHtml(name)} <button onclick="togglePresence('${name}')">${present?'✓':'+'}</button>`;
+      pWrap.appendChild(el);
+    });
+    $('participantsHelp').textContent=(user?.role==='player')?'Tu vois uniquement ta ligne.':"Le coach voit tout et peut modifier.";
+  }
+
+  // Exos
+  const wrap=$('exosList'); wrap.innerHTML=''; const exos=s.exos||[]; const help=$('exosHelp');
+  if(user?.role==='player'){
+    help.textContent=`Tes coches personnelles (${user.name}).`;
+    ensureProgressArraySize(frDate);
+    const onArr=(state.progress?.[frDate]?.[user.name]?.on)||Array(exos.length).fill(false);
+    exos.forEach((exo,idx)=>{
+      const on=!!onArr[idx];
+      const div=document.createElement('div'); div.className='chip';
+      div.innerHTML=`${escapeHtml(exo)} <button onclick="togglePlayerExo('${frDate}','${user.name}',${idx})">${on?'ON':'OFF'}</button>`;
+      wrap.appendChild(div);
+    });
+  } else {
+    help.textContent= exos.length ? 'Aperçu des exercices (lecture seule pour visiteurs/coach ici).' : 'Aucun exercice. Coach : utiliser un pack ou ajouter manuellement.';
+    exos.forEach(exo=>{const div=document.createElement('div'); div.className='chip'; div.textContent=exo; wrap.appendChild(div);});
+  }
+}
+function togglePresence(name){
+  const s=state.sessions[selectedDate]; s.participants=s.participants||[];
+  const i=s.participants.indexOf(name); if(i>=0) s.participants.splice(i,1); else s.participants.push(name);
+  save(); renderDetail(selectedDate);
+}
+function togglePlayerExo(frDate,player,idx){
+  const sess=state.sessions[frDate]; if(!sess) return;
+  const n=(sess.exos||[]).length;
+  state.progress[frDate]=state.progress[frDate]||{};
+  const rec=state.progress[frDate][player]||{on:Array(n).fill(false)};
+  if(rec.on.length!==n){ if(rec.on.length>n) rec.on=rec.on.slice(0,n); else rec.on=rec.on.concat(Array(n-rec.on.length).fill(false)); }
+  rec.on[idx]=!rec.on[idx];
+  state.progress[frDate][player]=rec;
+  save(); renderDetail(frDate); renderTiles();
+}
+function goBackToGrid(){
+  const anchorId = selectedDate ? ('tile-'+selectedDate.replaceAll('/','-')) : null;
+  closeModal('modalDetail');
+  if(anchorId && $(anchorId)){ setTimeout(()=>$(anchorId).scrollIntoView({behavior:'smooth',block:'center'}), 50); }
+}
+
+/* ===== Coach panel ===== */
+function openCoachFromTile(frDate){ if(!isCoach()) return; selectedDate=frDate; editorExos=[]; openCoachPanel(); setTimeout(()=>{ const sec=$('section4'); if(sec){ sec.scrollIntoView({behavior:'smooth',block:'start'});} },60); }
+function openCoachPanel(){ if(!isCoach()){ toast('Réservé au coach','err'); return; } openModal('modalPanelCoach'); renderCoachPanel(); }
+function renderCoachPanel(){
+  renderPlayersChips();
+  const sel=$('packSelect'); sel.innerHTML='';
+  Object.keys(state.packs).forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  sel.value=sel.options[0]?.value||'';
+  renderPackEditor(); renderCustomChips(); $('cloudUrl').value=state.cloudUrl||''; renderSection4();
+}
+
+/* ===== Joueurs (section 0) ===== */
+function renderPlayersChips(){
+  const wrap=$('playersChips'); wrap.innerHTML='';
+  if(!(state.players&&state.players.length)){
+    const h=document.createElement('div'); h.className='helper'; h.textContent='Aucun joueur. Ajoute ton effectif.';
+    wrap.appendChild(h); return;
+  }
+  state.players.forEach((name,idx)=>{
+    const c=document.createElement('div'); c.className='chip';
+    c.innerHTML=`${escapeHtml(name)} <button onclick="guard(()=>removePlayer(${idx}))">×</button>`;
+    wrap.appendChild(c);
+  });
+}
+function addPlayer(){
+  const v=$('newPlayer').value.trim();
+  if(!v){ toast('Nom vide','err'); return; }
+  if(state.players.includes(v)){ toast('Existe déjà','err'); return; }
+  state.players.push(v);
+  $('newPlayer').value='';
+  renderPlayersChips(); save(); toast('Joueur ajouté');
+}
+function removePlayer(idx){
+  const name=state.players[idx];
+  // Nettoyage des présences où ce joueur apparaît
+  Object.values(state.sessions).forEach(s=>{
+    if(s.participants){ const i=s.participants.indexOf(name); if(i>=0) s.participants.splice(i,1); }
+  });
+  deleteFromProgressEverywhere(name);
+  state.players.splice(idx,1);
+  renderPlayersChips(); save(); toast('Joueur supprimé');
+}
+function deleteFromProgressEverywhere(name){
+  Object.keys(state.progress||{}).forEach(date=>{
+    if(state.progress[date] && state.progress[date][name]) delete state.progress[date][name];
+  });
+}
+function savePlayers(){ save(); toast('Joueurs enregistrés'); }
+
+/* ===== Packs – UI enrichie ===== */
+function renderPackEditor(){
+  packSelection = new Set();
+  const name=$('packSelect').value;
+  const items=(state.packs[name]||[]);
+  const filter=($('packFilter').value||'').toLowerCase().trim();
+  const list=$('packList'); list.innerHTML='';
+  let shown=0;
+  items.forEach((txt,idx)=>{
+    if(filter && !txt.toLowerCase().includes(filter)) return;
+    shown++;
+    const id=`pack_${name}_${idx}`;
+    const row=document.createElement('div'); row.className='pack-item';
+    row.innerHTML=`
+      <input type="checkbox" id="${id}" onchange="onPackCheck('${name}',${idx},this.checked)">
+      <label for="${id}">${escapeHtml(txt)}</label>
+    `;
+    list.appendChild(row);
+  });
+  if(shown===0){ list.innerHTML = '<div class="helper">Aucun exercice ne correspond au filtre.</div>'; }
+}
+function onPackCheck(pack,idx,checked){ const key=pack+':'+idx; if(checked) packSelection.add(key); else packSelection.delete(key); }
+function toggleAllPack(check=true){
+  const name=$('packSelect').value;
+  const items=(state.packs[name]||[]);
+  const filter=($('packFilter').value||'').toLowerCase().trim();
+  packSelection.clear();
+  const list=$('packList');
+  const inputs=list.querySelectorAll('input[type="checkbox"]');
+  inputs.forEach((el)=>{
+    el.checked=check;
+    const m=el.id.match(/^pack_(.+)_(\d+)$/);
+    if(m && check){
+      const idx=parseInt(m[2],10);
+      const txt=items[idx]; if(!filter || (txt && txt.toLowerCase().includes(filter))){
+        packSelection.add(name+':'+idx);
+      }
+    }
+  });
+}
+function addSelectionToSession(){
+  if(!selectedDate){ toast('Ouvre une séance (clic tuile)','err'); return; }
+  const name=$('packSelect').value;
+  const items=(state.packs[name]||[]);
+  const chosen=[...packSelection].map(key=>parseInt(key.split(':')[1],10)).sort((a,b)=>a-b);
+  if(!chosen.length){ toast('Sélection vide','err'); return; }
+  const s=state.sessions[selectedDate]; s.exos=s.exos||[];
+  chosen.forEach(i=>{
+    const ex=items[i];
+    if(!s.exos.includes(ex)) s.exos.push(ex);
+  });
+  ensureProgressArraySize(selectedDate);
+  save(); renderSection4(); renderDetail(selectedDate); toast('Exercices ajoutés à la séance');
+}
+function replaceSessionWithSelection(){
+  if(!selectedDate){ toast('Ouvre une séance (clic tuile)','err'); return; }
+  const name=$('packSelect').value;
+  const items=(state.packs[name]||[]);
+  const chosen=[...packSelection].map(key=>parseInt(key.split(':')[1],10)).sort((a,b)=>a-b);
+  if(!chosen.length){ toast('Sélection vide','err'); return; }
+  const s=state.sessions[selectedDate];
+  s.exos = chosen.map(i=>items[i]);
+  ensureProgressArraySize(selectedDate);
+  save(); renderSection4(); renderDetail(selectedDate); toast('Séance remplacée par la sélection');
+}
+function createPackFromSession(){
+  if(!selectedDate){ toast('Ouvre une séance','err'); return; }
+  const name=prompt('Nom du nouveau pack ? ex: “Renfo + Tir U18”');
+  if(!name) return;
+  if(state.packs[name]){ toast('Un pack porte déjà ce nom','err'); return; }
+  const s=state.sessions[selectedDate]; const list=(s.exos||[]).slice();
+  if(!list.length){ toast('La séance ne contient aucun exercice','err'); return; }
+  state.packs[name]=list;
+  save(); renderCoachPanel(); toast('Pack créé depuis la séance');
+}
+
+/* Packs CRUD basique */
+function addItemToPack(){ const p=$('packSelect').value, v=$('newPackItem').value.trim(); if(!v) return; state.packs[p].push(v); $('newPackItem').value=''; renderPackEditor(); save(); toast('Exercice ajouté au pack'); }
+function addPack(){ const name=$('newPackName').value.trim(); if(!name||state.packs[name]){ toast('Nom vide ou déjà pris','err'); return; } state.packs[name]=[]; $('newPackName').value=''; renderCoachPanel(); save(); toast('Nouveau pack créé'); }
+function savePacks(){ save(); toast('Packs enregistrés'); }
+function renderCustomChips(){ const area=$('customChips'); area.innerHTML=''; (state.customExos||[]).forEach((name,idx)=>{ const c=document.createElement('div'); c.className='chip'; c.innerHTML=`${escapeHtml(name)} <button onclick="guard(()=>removeCustom(${idx}))">×</button>`; area.appendChild(c); }); }
+function addCustom(){ const v=$('newCustom').value.trim(); if(!v) return; state.customExos.push(v); $('newCustom').value=''; renderCustomChips(); save(); toast('Ajouté'); }
+function removeCustom(idx){ state.customExos.splice(idx,1); renderCustomChips(); save(); toast('Supprimé'); }
+
+/* ===== Section 4 (édition tuile) ===== */
+function renderSection4(){
+  const body=$('dayExosBody'); body.innerHTML='';
+  if(!selectedDate){ body.innerHTML='<div class="helper">Ouvre une séance (clic tuile) pour éditer.</div>'; return; }
+  const s=state.sessions[selectedDate];
+  const row=document.createElement('div'); row.style.display='flex'; row.style.gap='8px'; row.style.flexWrap='wrap';
+  row.innerHTML=`
+    <button class="small" onclick="guard(loadCurrentExos)">Charger exos actuels</button>
+    <button class="small" onclick="guard(saveEditorExos)">Enregistrer exercices</button>
+    <button class="small ghost" onclick="guard(wipeSessionKeepImage)">Effacer toutes les données (garde image)</button>
+  `;
+  body.appendChild(row); body.appendChild(document.createElement('hr'));
+  const chips=document.createElement('div'); chips.className='chips'; chips.id='editorChips';
+  (editorExos||[]).forEach((exo,idx)=>{ const c=document.createElement('div'); c.className='chip'; c.innerHTML=`${escapeHtml(exo)} <button onclick="guard(()=>removeEditorExo(${idx}))">×</button>`; chips.appendChild(c); });
+  body.appendChild(chips);
+  const addRow=document.createElement('div'); addRow.style.display='flex'; addRow.style.gap='8px'; addRow.style.margin='8px 0'; addRow.style.flexWrap='wrap';
+  addRow.innerHTML=`<input id="editorNewExo" type="text" placeholder="Ajouter un exercice" style="flex:1;min-width:200px"/><button class="small" onclick="guard(addEditorExo)">Ajouter</button>`;
+  body.appendChild(addRow); body.appendChild(document.createElement('hr'));
+  const meta=document.createElement('div');
+  meta.innerHTML=`
+    <div class="kv"><span>Type</span><input id="d_type" type="text" placeholder="${escapeHtml(s.type||'ex: Collectif')}"></div>
+    <div class="kv"><span>Horaire</span><input id="d_time" type="text" placeholder="${escapeHtml(s.horaire||'ex: 19h – 21h')}"></div>
+    <div class="kv"><span>Lieu</span><input id="d_place" type="text" placeholder="${escapeHtml(s.lieu||'ex: Gymnase A')}"></div>
+    <div class="kv"><span>Progression (%)</span><input id="d_prog" type="text" placeholder="0..100 (facultatif)"></div>
+    <button class="small" onclick="guard(saveDayMetaBlank)">Mettre à jour la tuile</button>
+    <div class="helper">Champs vides = valeur conservée. L’image reste inchangée.</div>
+  `;
+  body.appendChild(meta);
+}
+function addEditorExo(){ const v=$('editorNewExo').value.trim(); if(!v) return; editorExos.push(v); $('editorNewExo').value=''; renderSection4(); }
+function removeEditorExo(idx){ editorExos.splice(idx,1); renderSection4(); }
+function loadCurrentExos(){ const s=state.sessions[selectedDate]; editorExos=[...(s.exos||[])]; renderSection4(); }
+function saveEditorExos(){ const s=state.sessions[selectedDate]; s.exos=[...editorExos]; ensureProgressArraySize(selectedDate); save(); renderTiles(); toast('Exercices enregistrés'); }
+
+/* ===== Fiche: HTML / PDF / Drive ===== */
+function attachHtmlToSelected(){ if(!selectedDate){ toast('Ouvre une séance','err'); return; } state.sessions[selectedDate].html=$('htmlImport').value||'—'; save(); renderDetail(selectedDate); toast('HTML associé'); }
+function clearHtmlSelected(){ if(!selectedDate){ toast('Aucune séance ouverte','err'); return; } state.sessions[selectedDate].html=null; save(); renderDetail(selectedDate); toast('HTML effacé'); }
+document.addEventListener('change',(e)=>{
+  if(e.target && e.target.id==='fileHtml'){
+    if(!isCoach()) return toast('Réservé au coach','err');
+    const f=e.target.files?.[0]; if(!f) return;
+    if(!/text\/html|\.html?$/.test(f.type) && !/\.html?$/i.test(f.name)){ toast('Fichier non HTML','err'); e.target.value=''; return; }
+    if(f.size>2*1024*1024){ toast('HTML trop volumineux (>2 Mo)','err'); e.target.value=''; return; }
+    const reader=new FileReader();
+    reader.onload=()=>{ if(!selectedDate){ toast('Ouvre une séance','err'); return; }
+      state.sessions[selectedDate].html = reader.result || '—'; save(); renderDetail(selectedDate); toast('HTML importé');
+      e.target.value='';
+    };
+    reader.readAsText(f,'utf-8');
+  }
+});
+function importPdfFile(){
+  const input=$('filePdf'); const f=input.files?.[0]; if(!f){ toast('Sélectionne un PDF','err'); return; }
+  if(f.type!=='application/pdf'){ toast('Type invalide','err'); return; }
+  if(f.size>4*1024*1024){ toast('PDF trop volumineux (>4 Mo)','err'); return; }
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const base64=reader.result.split(',')[1];
+    if(!selectedDate){ toast('Ouvre une séance','err'); return; }
+    state.sessions[selectedDate].pdfBase64=base64; save(); renderDetail(selectedDate); toast('PDF importé');
+    input.value='';
+  };
+  reader.readAsDataURL(f);
+}
+function clearPdfSelected(){ if(!selectedDate){ toast('Ouvre une séance','err'); return; } state.sessions[selectedDate].pdfBase64=null; save(); renderDetail(selectedDate); toast('PDF effacé'); }
+function attachDriveToSelected(){
+  if(!selectedDate){ toast('Ouvre une séance','err'); return; }
+  const link=$('driveLink').value.trim(); if(!link){ toast('Colle un lien Drive','err'); return; }
+  const embed = buildDriveEmbed(link);
+  if(!embed){ toast('Lien Drive non reconnu','err'); return; }
+  state.sessions[selectedDate].driveEmbed=embed; save(); renderDetail(selectedDate); toast('Drive associé');
+}
+function clearDriveSelected(){ if(!selectedDate){ toast('Ouvre une séance','err'); return; } state.sessions[selectedDate].driveEmbed=null; save(); renderDetail(selectedDate); toast('Drive effacé'); }
+function buildDriveEmbed(url){
+  try{
+    const u=new URL(url);
+    if(u.hostname.includes('docs.google.com')){
+      if(u.pathname.startsWith('/document/')){ const id=u.pathname.split('/d/')[1]?.split('/')[0]; return id?`https://docs.google.com/document/d/${id}/preview`:null; }
+      if(u.pathname.startsWith('/spreadsheets/')){ const id=u.pathname.split('/d/')[1]?.split('/')[0]; return id?`https://docs.google.com/spreadsheets/d/${id}/preview`:null; }
+      if(u.pathname.startsWith('/presentation/')){ const id=u.pathname.split('/d/')[1]?.split('/')[0]; return id?`https://docs.google.com/presentation/d/${id}/preview`:null; }
+      if(u.pathname.startsWith('/forms/')){ const id=u.pathname.split('/d/')[1]?.split('/')[0]; return id?`https://docs.google.com/forms/d/${id}/viewform?embedded=true`:null; }
+    }
+    if(u.hostname.includes('drive.google.com')){
+      if(u.pathname.includes('/file/d/')){ const id=u.pathname.split('/file/d/')[1]?.split('/')[0]; return id?`https://drive.google.com/file/d/${id}/preview`:null; }
+      const id=u.searchParams.get('id'); if(id) return `https://drive.google.com/file/d/${id}/preview`;
+    }
+    return null;
+  }catch(e){ return null; }
+}
+
+/* ===== Effacer / Metas / Date ===== */
+function saveDayMetaBlank(){
+  const s=state.sessions[selectedDate];
+  const type=$('d_type').value.trim(); if(type) s.type=type;
+  const horaire=$('d_time').value.trim(); if(horaire) s.horaire=horaire;
+  const lieu=$('d_place').value.trim(); if(lieu) s.lieu=lieu;
+  const p=$('d_prog').value.trim(); if(p!=='' && !isNaN(parseInt(p,10))) s.progress=clamp(parseInt(p,10),0,100);
+  save(); renderTiles(); toast('Tuile mise à jour');
+}
+function wipeSessionKeepImage(){
+  const s=state.sessions[selectedDate];
+  if(!confirm('Effacer type, horaire, lieu, exos, fiches (HTML/PDF/Drive) et progrès joueurs ? (image conservée)')) return;
+  const keepImg=s.img;
+  state.sessions[selectedDate]={jour:s.jour,date:s.date,type:'',horaire:'',lieu:'',img:keepImg,html:null,pdfBase64:null,driveEmbed:null,exos:[],participants:[]};
+  state.progress[selectedDate]={}; editorExos=[];
+  save(); renderTiles(); renderSection4(); toast('Séance réinitialisée');
+}
+
+/* ===== Export / Import local ===== */
+function exportJSON(){ $('jsonIO').value=JSON.stringify(state,null,2); toast('État exporté dans la zone texte'); }
+function importJSON(){ try{ state=JSON.parse($('jsonIO').value); save(); renderTiles(); toast('Import local OK'); }catch(e){ toast('JSON invalide','err'); } }
+
+/* ===== Cloud ===== */
+function saveCloudUrl(){ state.cloudUrl=$('cloudUrl').value.trim(); save(); toast('URL Cloud enregistrée'); }
+function copyMagicLink(){
+  const url=new URL(location.href);
+  if(state.cloudUrl){ url.searchParams.set('cloud', encodeURIComponent(state.cloudUrl)); }
+  navigator.clipboard.writeText(url.toString()).then(()=>toast('Lien magique copié')).catch(()=>toast('Impossible de copier','err'));
+}
+function requireCloudReady(){
+  if(!isCoach()){ toast('Réservé au coach','err'); return false; }
+  if(!selectedDate){ toast('Ouvre une séance (clic tuile)','err'); return false; }
+  if(!state.cloudUrl){ toast('Renseigne l’URL Cloud (/exec)','err'); return false; }
+  return true;
+}
+async function cloudSaveSelected(){
+  if(!requireCloudReady()) return;
+  const date=selectedDate;
+  const payload={version:'v6.1-propre',date,session: state.sessions[date]||null,progress: state.progress[date]||{},players: state.players||[]};
+  try{
+    const res=await fetch(state.cloudUrl, {method:'POST',headers:{'Content-Type':'application/json'},body: JSON.stringify({date, payload: JSON.stringify(payload)})});
+    const j=await res.json().catch(()=>({ok:false}));
+    if(j && j.ok){ toast('Séance enregistrée sur le Cloud'); } else { toast('Échec sauvegarde Cloud','err'); }
+  }catch(e){ toast('Erreur réseau Cloud','err'); }
+}
+async function cloudLoadSelected(){
+  if(!requireCloudReady()) return;
+  const date=selectedDate;
+  try{
+    const url= new URL(state.cloudUrl);
+    url.searchParams.set('date', date);
+    const res=await fetch(url.toString(), {method:'GET'});
+    const data=await res.json().catch(()=>({}));
+    if(!data || !data.session){ toast('Aucune donnée trouvée pour cette date','err'); return; }
+    if(!data.session?.date || data.session.date!==date){ toast('Réponse Cloud incohérente','err'); return; }
+    state.sessions[date]=data.session;
+    state.progress[date]=data.progress||{};
+    // si le cloud renvoie une liste de joueurs, on peut l'adopter (optionnel)
+    if(Array.isArray(data.players)) state.players=data.players;
+    save(); renderTiles(); renderDetail(date); renderPlayersChips();
+    toast('Séance chargée depuis le Cloud');
+  }catch(e){ toast('Erreur réseau Cloud','err'); }
+}
+
+/* ===== Dates ===== */
+function renderMoveSelect(){ const sel=$('moveSelect'); if(!sel) return; sel.innerHTML=''; Object.values(state.sessions).forEach(s=>{ const o=document.createElement('option'); o.value=s.date; o.textContent=`${s.jour} – ${s.date} (${s.type||'—'})`; sel.appendChild(o); }); }
+function moveSessionDate(){
+  const frOld=$('moveSelect').value, iso=$('moveDate').value; if(!frOld||!iso){ toast('Choisis une séance et une date','err'); return; }
+  const frNew=toFR(iso); if(state.sessions[frNew]){ toast('Une séance existe déjà à cette date','err'); return; }
+  const s=state.sessions[frOld], newJour=dayFromFR(frNew);
+  state.sessions[frNew]={...s,date:frNew,jour:newJour}; delete state.sessions[frOld];
+  if(state.progress[frOld]){ state.progress[frNew]=state.progress[frOld]; delete state.progress[frOld]; }
+  if(selectedDate===frOld) selectedDate=frNew;
+  save(); renderTiles(); renderMoveSelect(); toast('Séance déplacée');
+}
+
+/* ===== Auth ===== */
+function loginPlayer(){
+  const name=$('playerName').value.trim();
+  if(!name){ toast('Entre ton identifiant','err'); return; }
+  if(!state.players.includes(name)){ toast('Identifiant inconnu. Demande au coach de t’ajouter.','err'); return; }
+  state.user={role:'player',name};
+  save(); closeModal('modalJoueur'); syncAuthUI(); renderTiles();
+}
+function loginCoach(){ const pin=$('coachPin').value.trim(); if(pin!=='0802'){ toast('PIN incorrect','err'); return; } state.user={role:'coach',name:'Coach'}; save(); closeModal('modalCoach'); syncAuthUI(); openCoachPanel(); }
+function logout(){ state.user=null; save(); syncAuthUI(); renderTiles(); }
+
+/* ===== Tabs & Modals ===== */
+document.addEventListener('click',(e)=>{
+  const btn=e.target.closest('.tabBtn'); if(!btn) return;
+  const wrap=btn.parentElement.parentElement;
+  wrap.querySelectorAll('.tabBtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  wrap.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
+  wrap.querySelector('#'+btn.dataset.tab).classList.add('active');
+});
+function openModal(id){ $(id).style.display='flex'; }
+function closeModal(id){ $(id).style.display='none'; }
+
+/* Init */
+load(); syncAuthUI(); renderTiles();
+</script>
+</body>
+</html>
